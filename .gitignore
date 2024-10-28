@@ -1,0 +1,9 @@
+*.swp
+/nearly_cc
+/depend.mak
+/solution.zip
+/Save
+/build
+/cmake-build-debug
+/assign03
+/assign04
