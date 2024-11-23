@@ -48,6 +48,8 @@ private:
   StorageCalculator m_storage_calc;
   unsigned m_total_local_storage;
   int m_next_vreg;
+  int m_next_arg;
+  unsigned m_return_offset = -1;
 
 public:
   LocalStorageAllocation();
@@ -72,14 +74,12 @@ public:
   //!                 to allocate local storage for
   void allocate_storage(std::shared_ptr<Function> function);
 
-  virtual void visit_function_definition(Node *n);
+  virtual void visit_function_parameter_list(Node *n);
   virtual void visit_statement_list(Node *n);
-  virtual void visit_variable_declaration(Node *n) override;
-  virtual void visit_array_declarator(Node *n) override;
-  virtual void visit_struct_type_definition(Node *n) override;
+  virtual void visit_variable_declaration(Node *n);
 
 private:
-  void allocate_storage_for_params(Node *param_list);
+  void allocate_storage_by_type(Symbol *symbol);
 };
 
 #endif // LOCAL_STORAGE_ALLOCATION_H

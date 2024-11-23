@@ -43,6 +43,7 @@ private:
   Symbol *m_symbol; // function symbol table entry
   std::shared_ptr<InstructionSequence> m_hl_iseq; // high-level code
   std::shared_ptr<InstructionSequence> m_ll_iseq; // low-level code
+  int m_next_reg;
 
 public:
   //! Constructor.
@@ -62,7 +63,11 @@ public:
 
   //! Get the function's symbol table entry.
   //! @return the function's symbol table entry
-  Symbol *get_symbol() const;
+  Symbol *get_symbol() ;
+
+  void set_next_reg(int reg);
+
+  int get_next_reg();
 
   //! Get the high-level InstructionSequence.
   //! @return shared poiner to the high-level InstructionSequence

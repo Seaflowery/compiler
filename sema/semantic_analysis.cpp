@@ -130,8 +130,9 @@ void SemanticAnalysis::visit_variable_declaration(Node *n) {
       SemanticError::raise(n->get_loc(), "variable defined");
     }
 
-    target_symtab->add_entry(declarator_node->get_loc(),
+    Symbol * sym = target_symtab->add_entry(declarator_node->get_loc(),
       SymbolKind::VARIABLE, var_name, var_type);
+    declarator_node->set_symbol(sym);
   }
 }
 
@@ -297,7 +298,8 @@ bool SemanticAnalysis::add_func(std::string &func_name, std::shared_ptr<Type> &f
     }
     return true;
   } else {
-    m_cur_symtab->add_entry(n->get_loc(), SymbolKind::FUNCTION, func_name, func_type);
+    Symbol *sym = m_cur_symtab->add_entry(n->get_loc(), SymbolKind::FUNCTION, func_name, func_type);
+    n->set_symbol(sym);
   }
   return false;
 }
@@ -323,8 +325,9 @@ void SemanticAnalysis::visit_statement_list(Node *n) {
       case AST_IF_ELSE_STATEMENT:
         visit_if_else_statement(stmt);
       break;
+
       default:
-        SemanticError::raise(stmt->get_loc(), "Unknown statement type.");
+        visit(stmt);
     }
   }
 }
@@ -354,8 +357,9 @@ void SemanticAnalysis::visit_param_list(Node *n, std::shared_ptr<Type> &func_typ
     if (m_cur_symtab->has_symbol_local(param_name)) {
       SemanticError::raise(n->get_loc(), "parameter name conflicts");
     }
-    const Node *node = n->get_kid(i);
-    m_cur_symtab->add_entry(node->get_loc(), SymbolKind::VARIABLE, param_name, param_type);
+    Node *node = n->get_kid(i);
+    Symbol *symbol = m_cur_symtab->add_entry(node->get_loc(), SymbolKind::VARIABLE, param_name, param_type);
+    node->set_symbol(symbol);
   }
 }
 
@@ -422,13 +426,14 @@ void SemanticAnalysis::visit_return_expression_statement(Node *n) {
   std::shared_ptr<Type> expr_type = return_expr->get_type();
   std::shared_ptr<Type> return_type = m_cur_symtab->get_fn_type()->get_base_type();
 
-  if (!expr_type->is_same(return_type.get())) {
+  if (!expr_type->is_same(return_type.get()) && !(expr_type->is_integral() && return_type->is_integral())) {
     SemanticError::raise(n->get_loc(), "Return type does not match function return type.");
   }
 }
 
 
 void SemanticAnalysis::visit_struct_type_definition(Node *n) {
+  n->set_symbolTable(m_cur_symtab);
   std::string struct_name = "struct " + n->get_kid(0)->get_str();
   std::shared_ptr<Type> struct_type = std::make_shared<StructType>(n->get_kid(0)->get_str());
   Node *field_list = n->get_kid(1);
@@ -447,6 +452,7 @@ void SemanticAnalysis::visit_struct_type_definition(Node *n) {
         std::string var_name = (*it)->get_str();
         struct_type->add_member(*new Member(var_name, (*it)->get_type()));
       }
+      (*it)->set_symbolTable(m_cur_symtab);
 
     }
   leave_scope();
@@ -587,9 +593,9 @@ void SemanticAnalysis::visit_arithmetic(Node *n, std::shared_ptr<Type> lhs_type,
 void SemanticAnalysis::visit_unary_expression(Node *n) {
   assert(n != nullptr);
 
-  Node *operator_node = n->get_kid(0);  // 操作符
-  Node *operand = n->get_kid(1);  // 操作数
-  visit_expression(operand);  // 递归解析操作数
+  Node *operator_node = n->get_kid(0);
+  Node *operand = n->get_kid(1);
+  visit_expression(operand);
 
   std::shared_ptr<Type> operand_type = operand->get_type();
 
@@ -598,6 +604,9 @@ void SemanticAnalysis::visit_unary_expression(Node *n) {
       if (!operand_type->is_pointer()) {
         SemanticError::raise(n->get_loc(), "Dereference requires a pointer type.");
       }
+    if (operand->get_tag() == AST_VARIABLE_REF) {
+      operand->get_symbol()->set_address_taken();
+    }
     n->set_type(operand_type->get_base_type());  // 返回指针指向的类型
     break;
 
@@ -665,7 +674,7 @@ void SemanticAnalysis::visit_if_else_statement(Node *n) {
 
 
 void SemanticAnalysis::visit_cast_expression(Node *n) {
-  // TODO: implement
+
 }
 
 void SemanticAnalysis::visit_function_call_expression(Node *n) {
@@ -749,6 +758,8 @@ void SemanticAnalysis::visit_array_element_ref_expression(Node *n) {
     visit_variable_ref(ref);
   }
 
+  visit(n->get_kid(1));
+
   if (!ref->get_type()->is_array() && !ref->get_type()->is_pointer() ) {
     SemanticError::raise(n->get_loc(), "Array reference must be an array or a pointer.");
   }
@@ -785,12 +796,19 @@ void SemanticAnalysis::visit_literal_value(Node *n) {
     } else if (value->is_unsigned()) {
       type = std::make_shared<BasicType>(BasicTypeKind::INT, false);
     }
+    n->set_literal(value);
   } else if (tag == TOK_STR_LIT) {
     auto base_type = std::make_shared<BasicType>(BasicTypeKind::CHAR, true);
     auto qualified = std::make_shared<QualifiedType>(base_type, TypeQualifier::CONST);
     type = std::make_shared<PointerType>(qualified);
+    std::shared_ptr<LiteralValue> value = std::make_shared<LiteralValue>(
+      LiteralValue::from_str_literal(n->get_kid(0)->get_str(), n->get_loc()));
+    n->set_literal(value);
   } else if (tag == TOK_CHAR_LIT) {
     type = std::make_shared<BasicType>(BasicTypeKind::CHAR, true);
+    std::shared_ptr<LiteralValue> value = std::make_shared<LiteralValue>(
+            LiteralValue::from_char_literal(n->get_kid(0)->get_str(), n->get_kid(0)->get_loc()));
+    n->set_literal(value);
   } else {
     SemanticError::raise(n->get_loc(), "Unsupported literal type.");
   }

@@ -36,6 +36,7 @@ private:
   std::shared_ptr<Function> m_function;
   int m_next_label_num;
   std::string m_return_label_name; // name of the label that return instructions should target
+  int m_next_vreg;
 
 public:
   //! Constructor.
@@ -84,5 +85,7 @@ public:
 
 private:
   std::string next_label();
+  int get_next_vreg();
+  HighLevelOpcode get_typed_opcode(HighLevelOpcode baseOpcode, std::shared_ptr<Type> type);
   // TODO: additional private member functions
 };

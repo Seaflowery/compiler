@@ -38,9 +38,19 @@ Node *Function::get_funcdef_ast() const {
   return m_funcdef_ast;
 }
 
-Symbol *Function::get_symbol() const {
+Symbol *Function::get_symbol() {
   return m_symbol;
 }
+
+int Function::get_next_reg() {
+  return m_next_reg;
+}
+
+void Function::set_next_reg(int reg) {
+  m_next_reg = reg;
+}
+
+
 
 std::shared_ptr<InstructionSequence> Function::get_hl_iseq() const {
   return m_hl_iseq;

@@ -42,6 +42,10 @@ private:
   std::string m_name;
   std::shared_ptr<Type> m_type;
   SymbolTable *m_symtab;
+  bool m_address_taken = false;
+  int m_vreg = -1;
+  unsigned m_offset = -1;
+  unsigned return_offset = -1;
 
   // value semantics prohibited
   Symbol(const Symbol &);
@@ -51,6 +55,15 @@ public:
   Symbol(SymbolKind kind, const std::string &name, std::shared_ptr<Type> type, SymbolTable *symtab);
   ~Symbol();
 
+  void set_address_taken() { m_address_taken = true; }
+  bool is_address_taken() const { return m_address_taken; }
+  void set_vreg(int vreg) { m_vreg = vreg; }
+  int get_vreg() { return m_vreg; }
+  bool is_in_reg() { return m_vreg != -1; }
+  void set_offset(unsigned offset) { m_offset = offset; }
+  unsigned get_offset() { return m_offset; }
+  void set_return_offset(unsigned offset) { return_offset = offset; }
+  unsigned get_return_offset() const { return return_offset; }
   SymbolKind get_kind() const;
   const std::string &get_name() const;
   std::shared_ptr<Type> get_type() const;

@@ -23,9 +23,12 @@
 #include "symtab.h"
 #include "local_storage_allocation.h"
 
+#include <ast.h>
+
 LocalStorageAllocation::LocalStorageAllocation()
   : m_total_local_storage(0U)
-  , m_next_vreg(VREG_FIRST_LOCAL) {
+  , m_next_vreg(VREG_FIRST_LOCAL)
+  , m_next_arg(VREG_FIRST_ARG) {
 }
 
 LocalStorageAllocation::~LocalStorageAllocation() {
@@ -40,17 +43,49 @@ void LocalStorageAllocation::allocate_storage(std::shared_ptr<Function> function
   visit(function->get_funcdef_ast());
   m_storage_calc.finish();
   m_total_local_storage = m_storage_calc.get_size();
-}
-
-void LocalStorageAllocation::visit_function_definition(Node *n) {
-  // TODO: implement
-  Node *param_list = n->get_kid(2);
-  allocate_storage_for_params(param_list);
-
+  function->get_symbol()->set_offset(m_total_local_storage);
+  if (m_return_offset != -1)
+    function->get_symbol()->set_return_offset(m_return_offset);
+  function->set_next_reg(m_next_vreg);
 }
 
 void LocalStorageAllocation::visit_statement_list(Node *n) {
-  // TODO: implement
+  for (auto it = n->cbegin(); it != n->cend(); ++it) {
+    visit(*it);
+    if ((*it)->get_tag() == AST_RETURN_STATEMENT) {
+      std::shared_ptr<Type> type = (*it)->get_type();
+      if (!(type->is_basic() || type->is_pointer())) {
+        m_return_offset = m_storage_calc.add_field(type);
+      }
+    }
+  }
 }
 
-// TODO: implement private member functions
+
+void LocalStorageAllocation::visit_function_parameter_list(Node *n) {
+  for (auto it = n->cbegin(); it != n->cend(); ++it) {
+    Node *param = *it;
+    allocate_storage_by_type(param->get_symbol());
+  }
+}
+
+void LocalStorageAllocation::visit_variable_declaration(Node *n) {
+  Node *declarator_list_node = n->get_kid(2);
+  for (size_t i = 0; i < declarator_list_node->get_num_kids(); ++i) {
+    Node *declarator_node = declarator_list_node->get_kid(i);
+    Symbol *declarator_symbol = declarator_node->get_symbol();
+    allocate_storage_by_type(declarator_symbol);
+  }
+}
+
+
+void LocalStorageAllocation::allocate_storage_by_type(Symbol *symbol) {
+  if ((symbol->get_type()->is_basic() || symbol->get_type()->is_pointer())
+    && !symbol->is_address_taken()) {
+      symbol->set_vreg(m_next_vreg++);
+   } else {
+     unsigned offset = m_storage_calc.add_field(symbol->get_type());
+     symbol->set_offset(offset);
+   }
+}
+

@@ -21,6 +21,7 @@
 #ifndef NODE_H
 #define NODE_H
 
+#include <utility>
 #include <vector>
 #include <string>
 #include "location.h"
@@ -39,6 +40,7 @@ private:
   Location m_loc;
   bool m_loc_was_set_explicitly;
   SymbolTable *m_symbol_table;
+  std::shared_ptr<LiteralValue> m_literal_value;
 
   // no value semantics
   Node(const Node &);
@@ -80,6 +82,10 @@ public:
   //! Set the Node's tag value.
   //! @param tag the tag value to set
   void set_tag(int tag) { m_tag = tag; }
+
+  void set_literal(std::shared_ptr<LiteralValue> literal_value) { m_literal_value = std::move(literal_value); }
+
+  std::shared_ptr<LiteralValue> get_literal() const { return m_literal_value; }
 
   SymbolTable *get_symbol_table() const { return m_symbol_table; }
 

@@ -34,7 +34,7 @@ NodeBase::~NodeBase() {
 // TODO: implement member functions
 void NodeBase::set_symbol(Symbol *symbol) {
   assert(!has_symbol());
-  assert(m_type == nullptr);
+  // assert(m_type == nullptr);
   m_symbol = symbol;
 }
 
